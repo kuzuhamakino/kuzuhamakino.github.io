@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>離脱シミュレータ β｜あなたのLP、どこで閉じられた？</title>
-<meta name="description" content="LP・広告原稿を貼ると、擬似読者が上から読んで「どこで閉じたか」を行単位で判定。流入媒体×ペルソナ別の到達率グラフと忖度なしの修正案を返します。サンプル診断は無料（β版・買い切り980円）。">
+<meta name="description" content="LP・広告原稿を貼ると、擬似読者が上から読んで「どこで閉じたか」を行単位で判定。流入媒体×ペルソナ別の到達率グラフと忖度なしの修正案を返します。自分の原稿も3回まで無料で診断できます（β版・買い切り980円）。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="離脱シミュレータ β｜あなたのLP、どこで閉じられた？">
-<meta property="og:description" content="原稿を貼ると擬似読者が読んで、離脱した行と理由を返します。サンプル診断は無料。β版 買い切り980円。">
+<meta property="og:description" content="原稿を貼ると擬似読者が読んで、離脱した行と理由を返します。3回まで無料。β版 買い切り980円。">
 <meta property="og:url" content="https://kuzuhamakino.github.io/ridatsu/">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230e1015'/><text x='16' y='23' font-size='18' text-anchor='middle'>❌</text></svg>">
@@ -227,7 +227,7 @@
     <a class="studio-link" href="../">← Marketing Tools Studio</a>
     <div class="logo">離脱シミュレータ<span class="beta">β</span></div>
     <div class="tagline">原稿を貼ると、擬似読者が上から読んで「どこで閉じたか」を行単位で返します</div>
-    <div class="free-pill" id="plan-pill">β版 買い切り980円｜サンプル診断は無料</div>
+    <div class="free-pill" id="plan-pill">β版 買い切り980円｜自分の原稿を3回まで無料診断</div>
   </header>
 
   <!-- 原稿入力 -->
@@ -304,7 +304,7 @@
   <div class="card" id="license-card">
     <h2>PRO版（買い切り 980円・β）</h2>
     <div id="lic-locked">
-      <p class="lic-note">サンプル原稿の診断は<b>無料</b>です。<b>自分の原稿</b>を読ませるにはPRO版のライセンスキーが必要です。</p>
+      <p class="lic-note">自分の原稿の診断は<b>3回まで無料</b>です。4回目からはPRO版のライセンスキーが必要になります（サンプル診断はずっと無料）。</p>
       <div class="lic-row">
         <a class="buy-btn" id="buy-link" href="#" target="_blank" rel="noopener">¥980で購入する（買い切り）</a>
       </div>
@@ -389,6 +389,12 @@ const LICENSE_API = "https://license-worker.saito-airi-tl.workers.dev";
 const LICENSE_PUBLIC_KEY = {"kty":"EC","x":"sdVW7WGX3eYlEQoEB8NvtoZn4btcYjJ2cqCIFdybfng","y":"rsU95QMZOD1GWIoM95l00wCcEhkonxilOicZfKm7eTs","crv":"P-256"};
 const PRODUCT = "ridatsu";
 let PRO = false;
+
+// 自分の原稿の無料診断回数（サンプル診断は無制限・カウント対象外）
+const FREE_RUNS = 3;
+function freeRunsUsed() {
+  return parseInt(localStorage.getItem("ridatsu_free_runs") || "0", 10);
+}
 
 const fromB64url = (s) => {
   const b64 = String(s).replace(/-/g, "+").replace(/_/g, "/");
@@ -895,14 +901,18 @@ document.getElementById("run").addEventListener("click", () => {
   if (!lines.length) { setStatus("原稿を入力してください", true); return; }
   if (lines.length > 200) { setStatus(`行数が多すぎます（${lines.length}行）。200行以内にしてください`, true); return; }
   if (!PRO) {
-    setStatus("自分の原稿の診断はPRO版（買い切り980円）で解放されます。「サンプル原稿で試す」は無料です", true);
-    document.getElementById("license-card").scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
+    const used = freeRunsUsed();
+    if (used >= FREE_RUNS) {
+      setStatus(`無料の${FREE_RUNS}回分を使い切りました。続きはPRO版（買い切り980円）でどうぞ`, true);
+      document.getElementById("license-card").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    localStorage.setItem("ridatsu_free_runs", String(used + 1));
   }
   const persona = currentPersona();
   const result = simulate(lines, persona);
   renderResult(lines, result, persona);
-  setStatus("");
+  setStatus(PRO ? "" : `無料診断 残り${FREE_RUNS - freeRunsUsed()}回（PRO版で無制限になります）`);
 });
 
 document.getElementById("demo").addEventListener("click", () => {
