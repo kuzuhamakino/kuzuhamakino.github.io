@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>離脱シミュレータ β｜あなたのLP、どこで閉じられた？</title>
+<meta name="description" content="LP・広告原稿を貼ると、擬似読者が上から読んで「どこで閉じたか」を行単位で判定。流入媒体×ペルソナ別の到達率グラフと忖度なしの修正案を返します。サンプル診断は無料（β版・買い切り980円）。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="離脱シミュレータ β｜あなたのLP、どこで閉じられた？">
+<meta property="og:description" content="原稿を貼ると擬似読者が読んで、離脱した行と理由を返します。サンプル診断は無料。β版 買い切り980円。">
+<meta property="og:url" content="https://kuzuhamakino.github.io/ridatsu/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230e1015'/><text x='16' y='23' font-size='18' text-anchor='middle'>❌</text></svg>">
+<style>
+  :root {
+    --bg: #0e1015;
+    --panel: #171a22;
+    --panel2: #1d212c;
+    --border: #2a2f3d;
+    --text: #e8eaf0;
+    --sub: #9aa1b2;
+    --accent: #ff5c47;
+    --ok: #3ecf8e;
+    --warn: #f5b93e;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header { text-align: center; margin-bottom: 36px; }
+  .studio-link {
+    display: inline-block; margin-bottom: 26px;
+    color: var(--sub); text-decoration: none; font-size: 12px;
+    letter-spacing: .08em; border-bottom: 1px solid var(--border);
+    padding-bottom: 2px; transition: .15s;
+  }
+  .studio-link:hover { color: var(--text); border-color: var(--sub); }
+  .logo { font-size: 30px; font-weight: 800; letter-spacing: .04em; }
+  .logo .beta { font-size: 13px; color: var(--accent); vertical-align: super; margin-left: 4px; }
+  .tagline { color: var(--sub); margin-top: 8px; font-size: 14px; }
+  .free-pill {
+    display: inline-block; margin-top: 14px;
+    font-size: 12.5px; letter-spacing: .06em; color: var(--accent);
+    border: 1px solid rgba(255,92,71,.45); border-radius: 999px;
+    padding: 4px 16px; background: rgba(255,92,71,.08);
+  }
+  .free-pill.pro { color: var(--ok); border-color: rgba(62,207,142,.45); background: rgba(62,207,142,.08); }
+
+  /* ---- license ---- */
+  .lic-note { font-size: 13.5px; color: var(--sub); }
+  .lic-note b { color: var(--text); }
+  .lic-note.ok { color: var(--ok); font-size: 14px; }
+  .lic-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .lic-row input {
+    flex: 1; min-width: 220px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; font-family: inherit;
+  }
+  .buy-btn {
+    display: inline-block; text-decoration: none; text-align: center;
+    background: var(--accent); color: #fff; border-radius: 10px;
+    padding: 12px 26px; font-size: 14.5px; font-weight: 700; transition: .15s;
+  }
+  .buy-btn:hover { filter: brightness(1.1); }
+  .buy-btn.disabled { opacity: .5; pointer-events: none; }
+  .lic-apply {
+    background: transparent; color: var(--sub);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .lic-apply:hover { color: var(--text); border-color: var(--sub); }
+  .lic-msg { font-size: 11.5px; color: var(--sub); margin-top: 8px; min-height: 16px; }
+  .lic-msg.err { color: var(--accent); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-size: 14px; color: var(--sub); font-weight: 600;
+    letter-spacing: .1em; margin-bottom: 14px;
+  }
+
+  textarea {
+    width: 100%; min-height: 220px; resize: vertical;
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: 14px; line-height: 1.8;
+    font-family: inherit;
+  }
+  textarea:focus, input:focus, select:focus { outline: 1px solid var(--accent); }
+
+  .persona-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .field label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 5px; }
+  .field input, .field select {
+    width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 10px; font-size: 14px; font-family: inherit;
+  }
+  .media-hint { font-size: 11.5px; color: var(--sub); margin-top: 10px; min-height: 18px; }
+  .media-hint b { color: var(--warn); font-weight: 600; }
+
+  .preset-row { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--panel2); border: 1px solid var(--border);
+    color: var(--sub); border-radius: 999px; padding: 6px 14px;
+    font-size: 12.5px; cursor: pointer; transition: .15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .actions { display: flex; gap: 12px; margin: 24px 0; flex-wrap: wrap; }
+  button.primary {
+    flex: 1; min-width: 220px;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 10px; padding: 15px 24px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: .15s;
+  }
+  button.primary:hover { filter: brightness(1.1); }
+  button.ghost {
+    background: transparent; color: var(--sub);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 15px 24px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  button.ghost:hover { color: var(--text); border-color: var(--sub); }
+
+  #status { text-align: center; color: var(--sub); font-size: 13.5px; min-height: 24px; }
+  #status.error { color: var(--accent); }
+
+  /* ---- results ---- */
+  #result { display: none; }
+  .persona-card {
+    display: flex; align-items: center; gap: 16px;
+    background: linear-gradient(135deg, #1d212c, #171a22);
+  }
+  .persona-emoji { font-size: 40px; }
+  .persona-desc { font-size: 14px; }
+  .persona-desc .p-title { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .persona-desc .p-sub { color: var(--sub); font-size: 12.5px; }
+  .badges { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 11px; border-radius: 6px; padding: 2px 8px;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--sub);
+  }
+  .badge.hot { color: var(--accent); border-color: rgba(255,92,71,.5); }
+  .badge.cool { color: var(--ok); border-color: rgba(62,207,142,.5); }
+
+  .verdict {
+    font-size: 15px; padding: 14px 18px; border-radius: 10px;
+    background: var(--panel2); border-left: 4px solid var(--accent);
+    margin-top: 14px;
+  }
+  .verdict.survived { border-left-color: var(--ok); }
+
+  .bignum-row { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+  .bignum {
+    flex: 1; min-width: 130px; background: var(--panel2);
+    border-radius: 10px; padding: 14px; text-align: center;
+  }
+  .bignum .n { font-size: 30px; font-weight: 800; }
+  .bignum .l { font-size: 11.5px; color: var(--sub); margin-top: 2px; }
+
+  #chart { width: 100%; height: 150px; margin-top: 6px; }
+
+  .lines { margin-top: 4px; }
+  .line-row {
+    display: grid; grid-template-columns: 52px 1fr 30px;
+    gap: 10px; align-items: start;
+    padding: 7px 8px; border-radius: 8px;
+  }
+  .line-row:hover { background: var(--panel2); }
+  .reach-cell { text-align: right; font-size: 11px; color: var(--sub); padding-top: 4px; position: relative; }
+  .reach-bar {
+    position: absolute; right: 0; top: 22px; height: 3px; border-radius: 2px;
+    background: var(--ok); max-width: 100%;
+  }
+  .line-text { font-size: 14px; border-radius: 6px; padding: 2px 8px; }
+  .line-voice {
+    font-size: 12px; color: var(--sub); font-style: italic;
+    margin-top: 3px; padding-left: 8px;
+  }
+  .line-voice::before { content: "💭 "; font-style: normal; }
+  .ev { font-size: 16px; padding-top: 2px; text-align: center; }
+  .line-row.dead .line-text { color: #555c6e; opacity: .55; }
+  .line-row.exit-line { background: rgba(255,92,71,.1); border: 1px solid rgba(255,92,71,.4); }
+  .exit-banner {
+    margin: 10px 0; padding: 14px 18px; border-radius: 10px;
+    background: rgba(255,92,71,.12); border: 1px solid rgba(255,92,71,.45);
+    font-size: 14px;
+  }
+  .exit-banner b { color: var(--accent); }
+  .dead-note { text-align: center; color: #555c6e; font-size: 12px; padding: 10px 0 2px; }
+
+  .fixes li { margin-left: 20px; margin-bottom: 8px; font-size: 14px; }
+  .fixes li::marker { color: var(--accent); font-weight: 700; }
+
+  .share-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .share-row button {
+    flex: 1; min-width: 160px; text-align: center;
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; font-size: 13.5px; cursor: pointer; font-family: inherit;
+  }
+  .share-row button:hover { border-color: var(--sub); }
+
+  .footer-brand { text-align: center; color: #4a5164; font-size: 11.5px; margin-top: 28px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--sub); margin: 8px 0 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="studio-link" href="../">← Marketing Tools Studio</a>
+    <div class="logo">離脱シミュレータ<span class="beta">β</span></div>
+    <div class="tagline">原稿を貼ると、擬似読者が上から読んで「どこで閉じたか」を行単位で返します</div>
+    <div class="free-pill" id="plan-pill">β版 買い切り980円｜サンプル診断は無料</div>
+  </header>
+
+  <!-- 原稿入力 -->
+  <div class="card">
+    <h2>原稿（LP・広告文・ポスト）</h2>
+    <textarea id="copy" placeholder="ここにLPや広告の原稿を貼り付け。&#10;&#10;例：&#10;もう、朝の準備に悩まない。&#10;忙しいあなたのための時短美容液が誕生。&#10;（以下続く…）"></textarea>
+  </div>
+
+  <!-- ペルソナ -->
+  <div class="card">
+    <h2>擬似読者（ペルソナ）</h2>
+    <div class="persona-grid">
+      <div class="field">
+        <label>年齢</label>
+        <input id="p-age" type="number" value="45" min="13" max="90">
+      </div>
+      <div class="field">
+        <label>属性（自由記述）</label>
+        <input id="p-attr" type="text" value="会社員・男性" placeholder="例：育児中の主婦">
+      </div>
+      <div class="field">
+        <label>閲覧タイミング</label>
+        <select id="p-time">
+          <option>朝の通勤電車</option>
+          <option>昼休みにスマホ</option>
+          <option>夜、ソファでだらだら</option>
+          <option selected>深夜2時、寝る前のベッド</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>機嫌・状態</label>
+        <select id="p-mood">
+          <option>機嫌がいい</option>
+          <option>暇つぶし中</option>
+          <option selected>疲れてる</option>
+          <option>イライラしてる</option>
+          <option>悩みが切実で情報を探してる</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>広告慣れ</label>
+        <select id="p-adlit">
+          <option>広告に免疫がない</option>
+          <option>ふつう</option>
+          <option selected>広告慣れしていて売り込みに敏感</option>
+          <option>業界人レベルで構造が見える</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>流入媒体</label>
+        <select id="p-source">
+          <option selected>X（旧Twitter）広告</option>
+          <option>Instagram広告</option>
+          <option>TikTok広告</option>
+          <option>Facebook広告</option>
+          <option>Google検索（リスティング）</option>
+          <option>Yahoo!ディスプレイ広告</option>
+          <option>LINE広告</option>
+          <option>SmartNews等ニュースアプリ広告</option>
+          <option>メルマガ・LINE公式のリンク</option>
+          <option>自然検索（SEO記事）</option>
+        </select>
+      </div>
+    </div>
+    <div class="media-hint" id="media-hint"></div>
+    <div class="preset-row">
+      <span class="chip" data-preset="yoru45">🌙 深夜2時・疲れてる・広告慣れした45歳男性</span>
+      <span class="chip" data-preset="mama32">🍼 昼休み・切実に悩んでる32歳ワーママ</span>
+      <span class="chip" data-preset="z41">📱 通勤中・イライラ・広告スルー歴10年の41歳</span>
+    </div>
+  </div>
+
+  <!-- ライセンス -->
+  <div class="card" id="license-card">
+    <h2>PRO版（買い切り 980円・β）</h2>
+    <div id="lic-locked">
+      <p class="lic-note">サンプル原稿の診断は<b>無料</b>です。<b>自分の原稿</b>を読ませるにはPRO版のライセンスキーが必要です。</p>
+      <div class="lic-row">
+        <a class="buy-btn" id="buy-link" href="#" target="_blank" rel="noopener">¥980で購入する（買い切り）</a>
+      </div>
+      <div class="lic-row">
+        <input id="license-input" type="text" placeholder="購入メールに届いたライセンスキーを貼り付け">
+        <button class="lic-apply" id="license-apply">PRO版を解放する</button>
+      </div>
+      <div class="lic-msg" id="lic-msg">購入後、ライセンスキーが自動発行されメールで届きます。決済完了画面から戻った場合は自動で解放されます。</div>
+    </div>
+    <div id="lic-open" style="display:none">
+      <p class="lic-note ok">✅ PRO版 解放済み — 自分の原稿を無制限に診断できます。</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="run">▶ 読ませてみる</button>
+    <button class="ghost" id="demo">サンプル原稿で試す（無料）</button>
+  </div>
+  <div id="status"></div>
+
+  <!-- ================= 結果 ================= -->
+  <div id="result">
+
+    <div class="card persona-card">
+      <div class="persona-emoji" id="r-emoji">🌙</div>
+      <div class="persona-desc">
+        <div class="p-title" id="r-persona-title"></div>
+        <div class="p-sub" id="r-persona-sub"></div>
+        <div class="badges" id="r-badges"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>結果サマリー</h2>
+      <div class="bignum-row">
+        <div class="bignum"><div class="n" id="r-reach">–</div><div class="l">最終到達率（想定読者100人中）</div></div>
+        <div class="bignum"><div class="n" id="r-exitline">–</div><div class="l">この読者が閉じた行</div></div>
+        <div class="bignum"><div class="n" id="r-stops">–</div><div class="l">指が止まった回数</div></div>
+      </div>
+      <div class="verdict" id="r-verdict"></div>
+    </div>
+
+    <div class="card">
+      <h2>到達率グラフ（何行目まで読まれたか）</h2>
+      <svg id="chart" viewBox="0 0 800 150" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="card">
+      <h2>行単位リプレイ</h2>
+      <div class="legend">
+        <span>⏸ 指が止まった</span><span>↩ 戻って読み直した</span><span>😑 流し読み</span><span>❌ 閉じた</span>
+      </div>
+      <div class="lines" id="r-lines"></div>
+    </div>
+
+    <div class="card">
+      <h2>直すならここ（3つだけ）</h2>
+      <ol class="fixes" id="r-fixes"></ol>
+    </div>
+
+    <div class="share-row">
+      <button id="share-x">𝕏 結果をポストする</button>
+      <button id="copy-result">結果テキストをコピー</button>
+    </div>
+
+    <div class="footer-brand">離脱シミュレータ β — 擬似読者によるシミュレーションであり実測データではありません</div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+/* ================================================================
+   ライセンス（PRO版）
+   サンプル診断は無料。自分の原稿の診断はライセンスキーで解放。
+   ================================================================ */
+// ↓ Stripeで「980円・買い切り」のPayment Linkを作成したらここに貼る
+const STRIPE_LINK = "";
+const LICENSE_API = "https://license-worker.saito-airi-tl.workers.dev";
+// 公開鍵（検証専用。偽造には秘密鍵が必要なため公開してよい）
+const LICENSE_PUBLIC_KEY = {"kty":"EC","x":"sdVW7WGX3eYlEQoEB8NvtoZn4btcYjJ2cqCIFdybfng","y":"rsU95QMZOD1GWIoM95l00wCcEhkonxilOicZfKm7eTs","crv":"P-256"};
+const PRODUCT = "ridatsu";
+let PRO = false;
+
+const fromB64url = (s) => {
+  const b64 = String(s).replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+  const bin = atob(b64 + pad);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+};
+
+async function verifyLicense(licenseKey) {
+  try {
+    const key = String(licenseKey || "").trim();
+    if (!key || !key.includes(".")) return { ok: false, reason: "ライセンスキーの形式が正しくありません。" };
+    const [payloadB64, sigB64] = key.split(".");
+    const pubKey = await crypto.subtle.importKey(
+      "jwk", { ...LICENSE_PUBLIC_KEY, ext: true },
+      { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]
+    );
+    const valid = await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" }, pubKey,
+      fromB64url(sigB64), new TextEncoder().encode(payloadB64)
+    );
+    if (!valid) return { ok: false, reason: "このライセンスキーは無効です。購入時のメールに記載のキーをご確認ください。" };
+    const payload = JSON.parse(new TextDecoder().decode(fromB64url(payloadB64)));
+    if (payload.p !== PRODUCT) return { ok: false, reason: "このライセンスキーは別の商品のものです。" };
+    if (payload.x && new Date(`${payload.x}T23:59:59`) < new Date()) {
+      return { ok: false, reason: `ライセンスの有効期限（${payload.x}）が切れています。` };
+    }
+    return { ok: true, email: payload.e, expires: payload.x };
+  } catch {
+    return { ok: false, reason: "ライセンスキーを読み取れませんでした。全文がコピーされているかご確認ください。" };
+  }
+}
+
+function unlockUI() {
+  PRO = true;
+  document.getElementById("lic-locked").style.display = "none";
+  document.getElementById("lic-open").style.display = "block";
+  const pill = document.getElementById("plan-pill");
+  pill.textContent = "PRO版 解放済み";
+  pill.classList.add("pro");
+}
+
+async function tryApplyLicense(key, save) {
+  const r = await verifyLicense(key);
+  if (r.ok) {
+    if (save) localStorage.setItem("ridatsu_license", key.trim());
+    unlockUI();
+  }
+  return r;
+}
+
+function licMsg(msg, isError) {
+  const el = document.getElementById("lic-msg");
+  el.textContent = msg;
+  el.className = "lic-msg" + (isError ? " err" : "");
+}
+
+document.getElementById("license-apply").addEventListener("click", async () => {
+  const key = document.getElementById("license-input").value;
+  const r = await tryApplyLicense(key, true);
+  if (!r.ok) licMsg(r.reason, true);
+});
+
+/* 購入ボタン */
+(function setupBuyLink() {
+  const a = document.getElementById("buy-link");
+  if (STRIPE_LINK) { a.href = STRIPE_LINK; }
+  else { a.classList.add("disabled"); a.textContent = "決済リンク準備中（近日公開）"; }
+})();
+
+/* 起動時：保存済みキー → 決済直後のsession_id の順に自動解放 */
+(async function initLicense() {
+  const saved = localStorage.getItem("ridatsu_license");
+  if (saved) {
+    const r = await tryApplyLicense(saved, false);
+    if (r.ok) return;
+    localStorage.removeItem("ridatsu_license");
+  }
+  const sid = new URLSearchParams(location.search).get("session_id");
+  if (sid && sid.startsWith("cs_")) {
+    licMsg("決済を確認しています…（最大1分ほどかかります）");
+    for (let i = 0; i < 12; i++) {
+      try {
+        const res = await fetch(`${LICENSE_API}/claim?session_id=${encodeURIComponent(sid)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.licenseKey) {
+            const r = await tryApplyLicense(data.licenseKey, true);
+            if (r.ok) { licMsg(""); return; }
+          }
+        }
+      } catch {}
+      await new Promise(s => setTimeout(s, 5000));
+    }
+    licMsg("決済の確認に時間がかかっています。メールで届くライセンスキーを上の欄に貼り付けてください。", true);
+  }
+})();
+
+/* ================================================================
+   媒体プロファイル：媒体によって読者の忍耐力・警戒心・目的意識が変わる
+   patience: 読み続ける体力の倍率 / skept: 売り込みへの警戒倍率 / intent: 目的意識(0-1)
+   ================================================================ */
+const MEDIA = {
+  "X（旧Twitter）広告":            { patience: 0.85, skept: 1.30, intent: 0.20, note: "流し見前提。忍耐力<b>低</b>・広告への警戒<b>高</b>。冒頭1〜2行で掴めないと即離脱します" },
+  "Instagram広告":                 { patience: 0.90, skept: 1.15, intent: 0.25, note: "ビジュアル文脈からの流入。忍耐力<b>やや低</b>。テキストの長さに敏感です" },
+  "TikTok広告":                    { patience: 0.70, skept: 1.20, intent: 0.15, note: "最も忍耐力が<b>低い</b>媒体。テンポの悪い行は一発アウトです" },
+  "Facebook広告":                  { patience: 1.00, skept: 1.10, intent: 0.30, note: "比較的読む層。ただし広告リテラシーは高めです" },
+  "Google検索（リスティング）":     { patience: 1.35, skept: 0.90, intent: 0.80, note: "自分で検索して来た読者。目的意識<b>高</b>で長文にも耐えますが、答えが出てこないと苛立ちます" },
+  "Yahoo!ディスプレイ広告":        { patience: 0.90, skept: 1.15, intent: 0.20, note: "ながら見の偶発接触。目的意識<b>低</b>。自分ごと化が最優先です" },
+  "LINE広告":                      { patience: 0.85, skept: 1.20, intent: 0.20, note: "トーク画面のついで見。忍耐力<b>低</b>です" },
+  "SmartNews等ニュースアプリ広告":  { patience: 0.95, skept: 1.10, intent: 0.30, note: "記事を読むモードの読者。記事風の書き出しなら読まれやすい一方、広告と分かった瞬間の離脱が急です" },
+  "メルマガ・LINE公式のリンク":     { patience: 1.30, skept: 0.80, intent: 0.60, note: "既存関係のある読者。警戒心<b>低</b>・忍耐力<b>高</b>。売り込みへの耐性も高めです" },
+  "自然検索（SEO記事）":            { patience: 1.40, skept: 0.85, intent: 0.75, note: "情報を探している読者。忍耐力<b>最高</b>ですが、広告に転じた瞬間の裏切られ感も大きいです" },
+};
+
+const MOOD = {
+  "機嫌がいい":               { patience: +0.15, skept: 0,     intent: 0 },
+  "暇つぶし中":               { patience: +0.10, skept: 0,     intent: -0.05 },
+  "疲れてる":                 { patience: -0.20, skept: 0,     intent: 0 },
+  "イライラしてる":           { patience: -0.35, skept: +0.20, intent: 0 },
+  "悩みが切実で情報を探してる": { patience: +0.50, skept: -0.20, intent: +0.35 },
+};
+const TIME = {
+  "朝の通勤電車":           -0.15,
+  "昼休みにスマホ":          0,
+  "夜、ソファでだらだら":    +0.10,
+  "深夜2時、寝る前のベッド": -0.10,
+};
+const ADLIT = {
+  "広告に免疫がない": 0.70,
+  "ふつう": 1.00,
+  "広告慣れしていて売り込みに敏感": 1.45,
+  "業界人レベルで構造が見える": 1.80,
+};
+
+/* ---------------- presets ---------------- */
+const PRESETS = {
+  yoru45: { age: 45, attr: "会社員・男性", time: "深夜2時、寝る前のベッド", mood: "疲れてる", adlit: "広告慣れしていて売り込みに敏感", source: "X（旧Twitter）広告" },
+  mama32: { age: 32, attr: "育児中のワーキングマザー", time: "昼休みにスマホ", mood: "悩みが切実で情報を探してる", adlit: "ふつう", source: "Instagram広告" },
+  z41:    { age: 41, attr: "会社員・SNSヘビーユーザー", time: "朝の通勤電車", mood: "イライラしてる", adlit: "業界人レベルで構造が見える", source: "TikTok広告" },
+};
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  const p = PRESETS[c.dataset.preset];
+  document.getElementById("p-age").value = p.age;
+  document.getElementById("p-attr").value = p.attr;
+  document.getElementById("p-time").value = p.time;
+  document.getElementById("p-mood").value = p.mood;
+  document.getElementById("p-adlit").value = p.adlit;
+  document.getElementById("p-source").value = p.source;
+  updateMediaHint();
+}));
+
+const mediaHintEl = document.getElementById("media-hint");
+function updateMediaHint() {
+  const m = MEDIA[document.getElementById("p-source").value];
+  mediaHintEl.innerHTML = m ? "📡 " + m.note : "";
+}
+document.getElementById("p-source").addEventListener("change", updateMediaHint);
+updateMediaHint();
+
+/* ================================================================
+   テキスト解析：行ごとの特徴検出
+   ================================================================ */
+const RE = {
+  sell:      /(定期|解約|初回限定|初回\s*\d|[%％]\s*OFF|OFF[!！]?|割引|半額|特別価格|モニター価格|お申し?込|ご?購入|ご?注文|クーポン|送料無料|実質無料|0円|キャンペーン|数量限定|期間限定|限定\s*\d+\s*名|先着|残り\d|なくなり次第|本日限り|締め?切り?|タイムセール|今だけ|お得に|プレゼント中|豪華特典|特典|返金保証|全額返金|保証付き|分割(払い)?OK|月々\s*\d|ポイント還元|無料体験|体験レッスン|トライアル|無料相談|相談無料|資料請求|お?見積|LINE登録|友だち追加|メルマガ登録|会員登録|登録は|申込み?は)/i,
+  cta:       /(今すぐ|下のボタン|こちらから|クリック|タップ|購入はこちら|詳しくは|チェック[!！]?$)/,
+  template:  /(ついに誕生|ついに登場|新発想|新常識|革命|業界初|話題の|いま話題|今話題|驚きの|衝撃|奇跡|魔法の|究極の|至福の|圧倒的|感動の|こだわりの|厳選|ワンランク上|大人気|爆売れ|バズ(った|り中)|SNSで(話題|拡散)|インフルエンサー|神コスパ|満足度\s*\d+|ランキング\s*(第?\s*)?1位|No\.?\s*1|受賞|メディアで(も)?紹介|愛用者続出|リピート率|セレブも|芸能人(も|御用達)|プロも認め|医師監修|専門家(も|が)?(推奨|絶賛)|特許(取得|技術)|独自(成分|技術|処方|メソッド)|選ばれ(続けて|ています)|累計\s*\d+\s*万?(個|本|袋|人|食|件)?\s*突破|販売実績|予約殺到|行列のできる|在庫わずか|完売御礼|リピーター続出|今までにない|常識を覆す|(飲む|塗る|貼る|置く|着る)だけで|たった\d+(分|秒|日)で|誰でも(簡単|できる)|初心者でも|知らないと損|9割の人が|はもう古い|禁断の|ご存知でしたか)/i,
+  stats:     /\d+(\.\d+)?\s*[%％]|\d+\s*(万)?人が|調査|アンケート/,
+  self:      /(あなた|お子さ|悩み|悩ん|忙し|つらい|辛い|疲れ|不安|気になる|困っ|イライラ|めんどう|面倒|時間がない|こんな(こと|経験)|ありませんか|ではないでしょうか|思ったこと|感じたこと|心当たり|当てはまる|思い当た|もしかして)/,
+  question:  /[？?]\s*$/,
+  concrete:  /\d+\s*(分|時間|日間?|週間|ヶ月|か月|カ月|円|kg|キロ|kcal|歳|回|倍|cm)/,
+  testimony: /(お客様の声|愛用者の声|利用者の声|口コミ|レビュー|体験談)|[「『].{4,}[」』]\s*[（(].{0,8}代/,
+  disclaim:  /^[※＊*]/,
+};
+
+function bigrams(s) {
+  const t = s.replace(/\s/g, "");
+  const set = new Set();
+  for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+  return set;
+}
+function similarity(a, b) {
+  if (!a.size || !b.size) return 0;
+  let hit = 0;
+  a.forEach(g => { if (b.has(g)) hit++; });
+  return hit / Math.min(a.size, b.size);
+}
+
+function analyze(lines) {
+  let sellSeen = false;
+  let prevGrams = null;
+  return lines.map((text, idx) => {
+    const f = {
+      text, idx,
+      sell: RE.sell.test(text),
+      cta: RE.cta.test(text),
+      template: RE.template.test(text),
+      stats: RE.stats.test(text),
+      self: RE.self.test(text),
+      question: RE.question.test(text),
+      concrete: RE.concrete.test(text),
+      testimony: RE.testimony.test(text),
+      disclaim: RE.disclaim.test(text),
+      len: text.length,
+    };
+    f.testimonyWeak = f.testimony && !f.concrete && !f.stats;
+    const grams = bigrams(text);
+    f.repeat = prevGrams ? similarity(grams, prevGrams) > 0.45 : false;
+    prevGrams = grams;
+
+    // 最初に売り込みが出た行は「警戒スイッチ」のショックが大きい
+    f.sellShock = 0;
+    if (f.sell || (f.cta && idx > 2)) {
+      f.sellShock = sellSeen ? 0.22 : 0.62;
+      sellSeen = true;
+    }
+
+    // 引き（読み続けたくなる力）
+    f.hook = Math.min(1.2,
+      (f.self ? 0.45 : 0) +
+      (f.question ? 0.25 : 0) +
+      (f.stats ? 0.28 : 0) +
+      (f.concrete ? 0.40 : 0) +
+      (f.testimony && !f.testimonyWeak ? 0.25 : 0)
+    );
+    // 萎え（読むのをやめたくなる力）
+    f.irr = Math.min(1.4,
+      (f.sell ? 0.45 : 0) +
+      (f.cta ? 0.20 : 0) +
+      (f.template ? 0.50 : 0) +
+      (f.testimonyWeak ? 0.30 : 0) +
+      (f.disclaim ? 0.20 : 0) +
+      (f.repeat ? 0.30 : 0) +
+      (f.len > 70 ? 0.30 : f.len > 45 ? 0.15 : 0)
+    );
+    return f;
+  });
+}
+
+/* ================================================================
+   シミュレーション本体
+   ================================================================ */
+function hashStr(s) {
+  let h = 1779033703 ^ s.length;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function personaParams(p) {
+  const m = MEDIA[p.source] || MEDIA["X（旧Twitter）広告"];
+  const mood = MOOD[p.mood] || { patience: 0, skept: 0, intent: 0 };
+  const age = Number(p.age) || 40;
+  let patience = m.patience + mood.patience + (TIME[p.time] || 0)
+    + (age < 25 ? -0.10 : age > 55 ? +0.10 : 0);
+  let skept = ADLIT[p.adlit] * m.skept + mood.skept + (age > 55 ? 0.05 : 0);
+  let intent = Math.max(0, Math.min(1, m.intent + mood.intent));
+  return { patience: Math.max(0.35, patience), skept: Math.max(0.3, skept), intent };
+}
+
+function readOnce(feats, params, rng, noise) {
+  // 1人の読者を最後まで（または離脱まで）歩かせる
+  const jitter = noise ? (0.7 + rng() * 0.6) : 1.0;
+  const jitter2 = noise ? (0.7 + rng() * 0.6) : 1.0;
+  const patience = params.patience * jitter;
+  const skept = params.skept * jitter2;
+  const intent = params.intent;
+  let E = 60 * patience;
+  for (let i = 0; i < feats.length; i++) {
+    const f = feats[i];
+    // 売り込みショック（目的意識が高いと耐える）
+    const shock = f.sellShock * skept * (1 - intent * 0.55);
+    if (shock > 0 && rng() < Math.min(0.85, shock * 0.5)) {
+      return { exitAt: i, cause: "sell", E };
+    }
+    const cost = Math.max(1, 4 + f.irr * 16 * skept - f.hook * (16 + intent * 12));
+    E -= cost;
+    // 体力が切れても即死ではなく、行ごとに離脱していく（カーブが滑らかになる）
+    if (E <= 0 && rng() < 0.55) {
+      const cause = f.template ? "template" : f.repeat ? "repeat" : (f.sell || f.cta) ? "sell" : "fatigue";
+      return { exitAt: i, cause, E };
+    }
+  }
+  return { exitAt: -1, cause: "done", E };
+}
+
+function simulate(lines, persona) {
+  const feats = analyze(lines);
+  const params = personaParams(persona);
+  const seed = hashStr(lines.join("\n") + JSON.stringify(persona));
+
+  // --- 100人のモンテカルロで到達率カーブ ---
+  const alive = new Array(lines.length).fill(0);
+  const crowdRng = mulberry32(seed ^ 0xC0FFEE);
+  for (let r = 0; r < 100; r++) {
+    const res = readOnce(feats, params, crowdRng, true);
+    const lastRead = res.exitAt === -1 ? lines.length - 1 : res.exitAt;
+    for (let i = 0; i <= lastRead; i++) alive[i]++;
+  }
+
+  // --- 代表読者（設定そのままの1人）のリプレイ ---
+  const heroRng = mulberry32(seed ^ 0xBEEF);
+  const hero = readOnce(feats, params, heroRng, false);
+
+  // --- 行ごとの表示データ組み立て ---
+  const voiceRng = mulberry32(seed ^ 0x51DE);
+  let voiceCount = 0;
+  const lineResults = feats.map((f, i) => {
+    const isExit = hero.exitAt === i;
+    const dead = hero.exitAt !== -1 && i > hero.exitAt;
+    let event = "none";
+    if (isExit) event = "exit";
+    else if (!dead) {
+      if (f.hook >= 0.7 && (f.stats || f.concrete)) event = "reread";
+      else if (f.hook >= 0.4) event = "stop";
+      else if (f.irr >= 0.45 || f.hook < 0.1 && f.len > 40) event = "skim";
+    }
+    let attention = dead ? 0 : Math.round(Math.max(0, Math.min(100,
+      22 + f.hook * 66 - f.irr * 30 + (voiceRng() * 10 - 5))));
+    const voice = dead ? "" : pickVoice(f, isExit, hero.cause, voiceRng, voiceCount, feats.length);
+    if (voice) voiceCount++;
+    return { i: i + 1, attention, reach: alive[i], event, voice };
+  });
+
+  const exitReason = buildExitReason(hero, feats);
+  const verdict = buildVerdict(hero, feats, lineResults, persona);
+  const fixes = buildFixes(hero, feats, lineResults);
+
+  return { lines: lineResults, exit_line: hero.exitAt === -1 ? -1 : hero.exitAt + 1, exit_reason: exitReason, verdict, fixes, params };
+}
+
+/* ---------------- 心の声 ---------------- */
+const VOICES = {
+  sellFirst: ["はい出た、定期縛りのやつ", "ここまでの話、全部この前フリか", "結局これが言いたいだけでしょ", "財布の話が早いんだよな"],
+  sell:      ["また割引の話してる", "オファー何個あるんだよ", "焦らせてくるじゃん。逆に冷める"],
+  template:  ["この言い回し、100万回見た", "広告の教科書通りすぎて逆に感心する", "書いた人、これで刺さると思ってるのかな", "『業界初』はもう聞き飽きた"],
+  stats:     ["その数字、n=30とかでしょ", "出典は？", "言いたいだけの数字っぽいな"],
+  self:      ["ちょっとわかる", "あ、これ自分のことかも", "うん、それ困ってるんだよな"],
+  concrete:  ["具体的なのは良いな", "数字あると想像しやすい"],
+  weakVoice: ["この『お客様』、社内の人でしょ", "『もう手放せません』、テンプレの中のテンプレ"],
+  longline:  ["壁みたいな文字量。読まない", "長っ"],
+  disclaim:  ["※で回収するくらいなら最初から言えばいいのに"],
+  repeat:    ["同じ話2回目だけど、ページ埋めたいだけ？"],
+};
+function pickVoice(f, isExit, cause, rng, count, total) {
+  if (isExit) {
+    if (cause === "sell") return pick(rng, VOICES.sellFirst);
+    if (cause === "template") return "読む価値なし。閉じよ";
+    if (cause === "repeat") return "同じ話しかしてない。閉じよ";
+    return "疲れた。どうせ大したこと書いてない";
+  }
+  if (count > total * 0.4) return ""; // 声は全体の4割まで
+  let pool = null;
+  if (f.sellShock >= 0.5) pool = VOICES.sellFirst;
+  else if (f.sell) pool = VOICES.sell;
+  else if (f.template) pool = VOICES.template;
+  else if (f.testimonyWeak) pool = VOICES.weakVoice;
+  else if (f.repeat) pool = VOICES.repeat;
+  else if (f.stats) pool = VOICES.stats;
+  else if (f.self && f.hook >= 0.45) pool = VOICES.self;
+  else if (f.concrete && f.hook >= 0.4) pool = VOICES.concrete;
+  else if (f.len > 70) pool = VOICES.longline;
+  else if (f.disclaim) pool = VOICES.disclaim;
+  if (!pool) return "";
+  return rng() < 0.62 ? pick(rng, pool) : "";
+}
+function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+/* ---------------- 離脱理由・総評・修正案 ---------------- */
+function buildExitReason(hero, feats) {
+  if (hero.exitAt === -1) return "最後まで読ませたのは事実。ただしオファーが弱ければ、ここまでの健闘は全部無駄になる";
+  const f = feats[hero.exitAt];
+  switch (hero.cause) {
+    case "sell":
+      return f.sellShock >= 0.5
+        ? "急に売り込まれた（ベネフィットを渡す前に財布の話を始めたので、警戒スイッチが入った）"
+        : "オファーの畳みかけにうんざりされた。売りたい気持ちが文面から漏れすぎ";
+    case "template": return "テンプレ広告の言い回しの連続に「読む価値なし」の判定を食らった";
+    case "repeat":   return "同じ話の繰り返し。ページを埋めるための文章だと見抜かれた";
+    default: {
+      const selfCountBefore = feats.slice(0, hero.exitAt + 1).filter(x => x.self).length;
+      if (selfCountBefore === 0) return "最後まで一度も自分ごとにならなかった。誰に向けて書いたのか不明のまま体力切れ";
+      return "決定打がないままダラダラ続き、読む体力が切れた";
+    }
+  }
+}
+
+function buildVerdict(hero, feats, lineResults, persona) {
+  const n = lineResults.length;
+  const fv = lineResults[Math.min(3, n - 1)].reach;
+  const last = lineResults[n - 1].reach;
+  // 最大の一行落差
+  let maxDrop = 0, maxDropIdx = 0;
+  for (let i = 1; i < n; i++) {
+    const d = lineResults[i - 1].reach - lineResults[i].reach;
+    if (d > maxDrop) { maxDrop = d; maxDropIdx = i; }
+  }
+  const fvC = fv >= 80 ? "FV（冒頭）は仕事をしている。ここは褒める。" : fv >= 60 ? "FV（冒頭）で既に読者が漏れている。書き出しが弱い。" : "FV（冒頭）で読者の3分の1以上が消えた。この時点で広告費の3割をドブに捨てている。";
+  const leakC = maxDrop >= 8 ? `最大の事故現場は${maxDropIdx + 1}行目（この1行だけで-${maxDrop}人）。` : "決定打がないままダラダラ削られる、いちばん直しにくいタイプの原稿。";
+  const lastC = last >= 40 ? `最終到達${last}%は上出来。ただしオファーで刈り取れるかは別問題。` : last >= 15 ? `最終到達${last}%。CTAに届くのは物好きだけ。` : `最終到達${last}%。CTAは存在しないのと同じ。`;
+  return fvC + leakC + lastC;
+}
+
+function buildFixes(hero, feats, lineResults) {
+  const cands = [];
+  const n = feats.length;
+
+  // 1) 売り込みショックによる離脱
+  const shockIdx = feats.findIndex(f => f.sellShock >= 0.5);
+  if (shockIdx >= 0 && hero.cause === "sell") {
+    cands.push({ pr: 10, t: `${shockIdx + 1}行目のオファー提示が早すぎる。直前に「使った後どう変わるか」のベネフィットを1行挟んでから価格の話に入る` });
+  } else if (shockIdx >= 0) {
+    cands.push({ pr: 6, t: `${shockIdx + 1}行目で初めて売り込みに転じる。ここが警戒スイッチなので、直前の行に具体的な変化・実感を置いて緩衝材にする` });
+  }
+  // 2) テンプレ表現
+  const tmpl = feats.filter(f => f.template).slice(0, 2);
+  tmpl.forEach(f => {
+    cands.push({ pr: 8, t: `${f.idx + 1}行目「${trunc(f.text, 18)}」は広告テンプレの言い回し。読者はこの行で「ああ広告か」という目に切り替わる。削るか固有の事実に置き換える` });
+  });
+  // 3) 冒頭の自分ごと化
+  const selfIn3 = feats.slice(0, 3).some(f => f.self || f.question);
+  if (!selfIn3) {
+    cands.push({ pr: 9, t: `冒頭3行に読者を主語にした行がない。1〜2行目をターゲットの悩みの実況（「また今夜も◯◯…」のような一人称）に差し替える` });
+  }
+  // 4) 弱い体験談
+  const weak = feats.find(f => f.testimonyWeak);
+  if (weak) {
+    cands.push({ pr: 7, t: `${weak.idx + 1}行目のお客様の声は誰にでも書ける内容で飛ばされる。「◯◯が25分→8分になった」のような数字入りの声に差し替える` });
+  }
+  // 5) 長すぎる行
+  const long = feats.find(f => f.len > 70);
+  if (long) {
+    cands.push({ pr: 5, t: `${long.idx + 1}行目が${long.len}文字と長い。スマホでは塊に見えて飛ばされるため、2行に分割する` });
+  }
+  // 6) 繰り返し
+  const rep = feats.find(f => f.repeat);
+  if (rep) {
+    cands.push({ pr: 6, t: `${rep.idx + 1}行目は直前の行とほぼ同じ内容。片方を削って前に進める` });
+  }
+  // 7) 最大落差の行（上記に該当がない場合の受け皿）
+  let maxDrop = 0, maxDropIdx = -1;
+  for (let i = 1; i < lineResults.length; i++) {
+    const d = lineResults[i - 1].reach - lineResults[i].reach;
+    if (d > maxDrop) { maxDrop = d; maxDropIdx = i; }
+  }
+  if (maxDropIdx >= 0 && maxDrop >= 6) {
+    cands.push({ pr: 4, t: `${maxDropIdx + 1}行目で読者が最も減っている（-${maxDrop}人）。この行の役割（何を伝えて次を読ませるか）を明確にするか、削って前後を直結させる` });
+  }
+  // 8) フォールバック
+  if (cands.length < 3) {
+    cands.push({ pr: 1, t: "各行の末尾で「次の行を読みたくなる理由」が作れているかを見直す。行単位で完結してしまうと、どこでも離脱できる原稿になる" });
+    cands.push({ pr: 1, t: "具体的な数字（時間・金額・回数）が少ない。抽象的な便益は1つでも数字に置き換えると到達率が伸びる" });
+  }
+  cands.sort((a, b) => b.pr - a.pr);
+  // 同一行への重複提案を除去
+  const seen = new Set(); const out = [];
+  for (const c of cands) {
+    const key = c.t.slice(0, 5);
+    if (seen.has(key)) continue;
+    seen.add(key); out.push(c.t);
+    if (out.length === 3) break;
+  }
+  return out;
+}
+function trunc(s, n) { return s.length > n ? s.slice(0, n) + "…" : s; }
+
+/* ================================================================
+   UI
+   ================================================================ */
+const statusEl = document.getElementById("status");
+function setStatus(msg, isError) {
+  statusEl.className = isError ? "error" : "";
+  statusEl.innerHTML = msg;
+}
+function splitLines(text) {
+  return text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
+}
+function currentPersona() {
+  return {
+    age: document.getElementById("p-age").value,
+    attr: document.getElementById("p-attr").value,
+    time: document.getElementById("p-time").value,
+    mood: document.getElementById("p-mood").value,
+    adlit: document.getElementById("p-adlit").value,
+    source: document.getElementById("p-source").value,
+  };
+}
+
+document.getElementById("run").addEventListener("click", () => {
+  const lines = splitLines(document.getElementById("copy").value);
+  if (!lines.length) { setStatus("原稿を入力してください", true); return; }
+  if (lines.length > 200) { setStatus(`行数が多すぎます（${lines.length}行）。200行以内にしてください`, true); return; }
+  if (!PRO) {
+    setStatus("自分の原稿の診断はPRO版（買い切り980円）で解放されます。「サンプル原稿で試す」は無料です", true);
+    document.getElementById("license-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  const persona = currentPersona();
+  const result = simulate(lines, persona);
+  renderResult(lines, result, persona);
+  setStatus("");
+});
+
+document.getElementById("demo").addEventListener("click", () => {
+  document.getElementById("copy").value = DEMO_COPY;
+  const lines = splitLines(DEMO_COPY);
+  const persona = currentPersona();
+  renderResult(lines, simulate(lines, persona), persona);
+  setStatus("↓ サンプル原稿の結果です。ペルソナや媒体を変えて再実行すると結果が変わります");
+});
+
+/* ---------------- render ---------------- */
+const EV_ICON = { stop: "⏸", reread: "↩", skim: "😑", exit: "❌", none: "" };
+
+function heatColor(attention) {
+  const a = Math.max(0, Math.min(100, attention)) / 100;
+  return `rgba(255, 140, 66, ${0.04 + a * 0.30})`;
+}
+function levelLabel(v, low, high) {
+  return v < low ? "低" : v > high ? "高" : "中";
+}
+
+function renderResult(lines, r, persona) {
+  const resEl = document.getElementById("result");
+  resEl.style.display = "block";
+
+  const emoji = persona.time.includes("深夜") ? "🌙" : persona.time.includes("通勤") ? "🚃" : persona.time.includes("昼") ? "🍱" : "🛋";
+  document.getElementById("r-emoji").textContent = emoji;
+  document.getElementById("r-persona-title").textContent = `${persona.age}歳・${persona.attr}`;
+  document.getElementById("r-persona-sub").textContent = `${persona.time} ／ ${persona.mood} ／ ${persona.adlit} ／ ${persona.source}から流入`;
+
+  // 媒体×状態で決まった読者パラメータをバッジ表示
+  const badgesEl = document.getElementById("r-badges");
+  const pt = r.params.patience, sk = r.params.skept, it = r.params.intent;
+  badgesEl.innerHTML = "";
+  [
+    { label: "忍耐力", v: levelLabel(pt, 0.85, 1.2), hot: pt < 0.85, cool: pt > 1.2 },
+    { label: "警戒心", v: levelLabel(sk, 0.95, 1.4), hot: sk > 1.4, cool: sk < 0.95 },
+    { label: "目的意識", v: levelLabel(it, 0.3, 0.6), hot: it < 0.3, cool: it > 0.6 },
+  ].forEach(b => {
+    const el = document.createElement("span");
+    el.className = "badge" + (b.hot ? " hot" : b.cool ? " cool" : "");
+    el.textContent = `${b.label}:${b.v}`;
+    badgesEl.appendChild(el);
+  });
+
+  const lastReach = r.lines.length ? r.lines[r.lines.length - 1].reach : 0;
+  const stops = r.lines.filter(l => l.event === "stop" || l.event === "reread").length;
+  const reachEl = document.getElementById("r-reach");
+  reachEl.textContent = lastReach + "人";
+  reachEl.style.color = lastReach >= 30 ? "var(--ok)" : lastReach >= 10 ? "var(--warn)" : "var(--accent)";
+  document.getElementById("r-exitline").textContent = r.exit_line === -1 ? "読了🎉" : r.exit_line + "行目";
+  document.getElementById("r-stops").textContent = stops + "回";
+
+  const verdictEl = document.getElementById("r-verdict");
+  verdictEl.textContent = r.verdict;
+  verdictEl.className = "verdict" + (r.exit_line === -1 ? " survived" : "");
+
+  drawChart(r.lines);
+
+  const linesEl = document.getElementById("r-lines");
+  linesEl.innerHTML = "";
+  let deadNoteAdded = false;
+  r.lines.forEach((lr, idx) => {
+    const text = lines[idx] ?? "";
+    const isDead = r.exit_line !== -1 && idx + 1 > r.exit_line;
+    const isExit = r.exit_line !== -1 && idx + 1 === r.exit_line;
+
+    if (isDead && !deadNoteAdded) {
+      const note = document.createElement("div");
+      note.className = "dead-note";
+      note.textContent = "―――― この読者はここから先を読んでいません（数字は残存読者の推移） ――――";
+      linesEl.appendChild(note);
+      deadNoteAdded = true;
+    }
+
+    const row = document.createElement("div");
+    row.className = "line-row" + (isDead ? " dead" : "") + (isExit ? " exit-line" : "");
+
+    const reach = document.createElement("div");
+    reach.className = "reach-cell";
+    reach.textContent = lr.reach + "%";
+    const bar = document.createElement("div");
+    bar.className = "reach-bar";
+    bar.style.width = Math.max(2, lr.reach * 0.44) + "px";
+    bar.style.background = lr.reach >= 50 ? "var(--ok)" : lr.reach >= 20 ? "var(--warn)" : "var(--accent)";
+    reach.appendChild(bar);
+
+    const body = document.createElement("div");
+    const t = document.createElement("div");
+    t.className = "line-text";
+    t.textContent = text;
+    if (!isDead) t.style.background = heatColor(lr.attention);
+    body.appendChild(t);
+    if (lr.voice) {
+      const v = document.createElement("div");
+      v.className = "line-voice";
+      v.textContent = lr.voice;
+      body.appendChild(v);
+    }
+
+    const ev = document.createElement("div");
+    ev.className = "ev";
+    ev.textContent = EV_ICON[lr.event] || "";
+
+    row.appendChild(reach);
+    row.appendChild(body);
+    row.appendChild(ev);
+    linesEl.appendChild(row);
+
+    if (isExit) {
+      const banner = document.createElement("div");
+      banner.className = "exit-banner";
+      banner.innerHTML = `❌ <b>ここで閉じられました。</b>理由：${escapeHtml(r.exit_reason)}`;
+      linesEl.appendChild(banner);
+    }
+  });
+  if (r.exit_line === -1) {
+    const banner = document.createElement("div");
+    banner.className = "exit-banner";
+    banner.style.background = "rgba(62,207,142,.1)";
+    banner.style.borderColor = "rgba(62,207,142,.45)";
+    banner.innerHTML = `🎉 <b style="color:var(--ok)">最後まで読まれました。</b>${escapeHtml(r.exit_reason)}`;
+    linesEl.appendChild(banner);
+  }
+
+  const fixesEl = document.getElementById("r-fixes");
+  fixesEl.innerHTML = "";
+  (r.fixes || []).slice(0, 3).forEach(f => {
+    const li = document.createElement("li");
+    li.textContent = f;
+    fixesEl.appendChild(li);
+  });
+
+  const shareText = r.exit_line === -1
+    ? `離脱シミュレータで自分の原稿を読ませたら、${persona.source}経由の${persona.age}歳(${persona.mood})が最後まで読んでくれた🎉 最終到達率${lastReach}% #離脱シミュレータ`
+    : `離脱シミュレータで自分の原稿を読ませたら、${persona.source}経由の${persona.age}歳(${persona.mood})に${r.exit_line}行目で閉じられた…理由「${r.exit_reason}」 #離脱シミュレータ`;
+  document.getElementById("share-x").onclick = () => {
+    window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(shareText), "_blank");
+  };
+  document.getElementById("copy-result").onclick = async () => {
+    const txt = [
+      `【離脱シミュレータ 結果】`,
+      `読者: ${persona.age}歳・${persona.attr}（${persona.time}／${persona.mood}）`,
+      `流入: ${persona.source}`,
+      r.exit_line === -1 ? `→ 最後まで読了` : `→ ${r.exit_line}行目で離脱「${r.exit_reason}」`,
+      `最終到達率: ${lastReach}%`,
+      ``, `総評: ${r.verdict}`, ``,
+      `修正案:`, ...(r.fixes || []).map((f, i) => `${i + 1}. ${f}`),
+    ].join("\n");
+    await navigator.clipboard.writeText(txt);
+    setStatus("結果をコピーしました");
+  };
+
+  resEl.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function drawChart(lineResults) {
+  const svg = document.getElementById("chart");
+  const W = 800, H = 150, PAD = 10;
+  const n = lineResults.length;
+  if (!n) { svg.innerHTML = ""; return; }
+  const x = i => PAD + (W - 2 * PAD) * (n === 1 ? 0 : i / (n - 1));
+  const y = v => PAD + (H - 2 * PAD) * (1 - v / 100);
+
+  let path = "";
+  lineResults.forEach((l, i) => { path += (i === 0 ? "M" : "L") + x(i).toFixed(1) + "," + y(l.reach).toFixed(1); });
+  const area = path + `L${x(n - 1).toFixed(1)},${y(0)}L${x(0)},${y(0)}Z`;
+
+  const gridLines = [25, 50, 75].map(v =>
+    `<line x1="${PAD}" x2="${W - PAD}" y1="${y(v)}" y2="${y(v)}" stroke="#262b38" stroke-width="1"/>
+     <text x="${PAD + 2}" y="${y(v) - 3}" fill="#4a5164" font-size="9">${v}%</text>`).join("");
+
+  const exitIdx = lineResults.findIndex(l => l.event === "exit");
+  const exitMark = exitIdx >= 0
+    ? `<circle cx="${x(exitIdx)}" cy="${y(lineResults[exitIdx].reach)}" r="5" fill="#ff5c47"/>
+       <text x="${Math.min(x(exitIdx) + 8, W - 60)}" y="${Math.max(14, y(lineResults[exitIdx].reach) - 8)}" fill="#ff5c47" font-size="10">❌ ${exitIdx + 1}行目</text>`
+    : "";
+
+  svg.innerHTML = `
+    ${gridLines}
+    <path d="${area}" fill="rgba(255,92,71,.12)"/>
+    <path d="${path}" fill="none" stroke="#ff5c47" stroke-width="2.5" stroke-linejoin="round"/>
+    ${exitMark}`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ---------------- demo copy ---------------- */
+const DEMO_COPY = `もう、朝のメイク時間に悩まない。
+「時短」なのに、仕上がりは崩れない。
+新発想のオールインワン美容液がついに誕生しました。
+実は、日本人女性の78%が「朝の準備時間が足りない」と感じています。
+そんなあなたのために、私たちは3年間の研究を重ねました。
+厳選された美容成分を、ぎゅっと1本に。
+洗顔後はこれ1本でスキンケアが完了します。
+さらに今なら、初回限定で50%OFF。
+定期コースならずっと20%OFFでお届けします。
+※定期コースはいつでも解約可能です。
+お客様の声：「もう手放せません！」（40代・女性）
+「肌の調子が変わった気がします」（30代・女性）
+今すぐ下のボタンから、お得にお試しください。
+数量限定のため、なくなり次第終了です。`;
+</script>
+</body>
+</html>
